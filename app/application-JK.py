@@ -7,38 +7,42 @@ app = Flask(__name__)
 app.secret_key = b"192b9bdd22ab9ed4d12e236c78afcb9a393ec15f71bbf5dc987d54727823bcbf"
 app.logger.setLevel(logging.INFO)
 
+connection = sqlite3.connect("database.db")
+cursor = connection.cursor()
+connection.execute(
+    "INSERT INTO users VALUES ('0', 'Username1', 'Password1')")
+connection.commit()
+cursor.execute("SELECT * FROM users")
+row = cursor.fetchone()
+print(row)
+
 
 def get_db_connection():
-    try:
-        connection = sqlite3.connect("database.db")
-        connection.row_factory = sqlite3.Row
-        return connection
-    except sqlite3.Error as SQLerror:
-        app.logger.error(f"Database connection error: {SQLerror}")
-        abort(500)
+    connection = sqlite3.connect("database.db")
+    connection.row_factory = sqlite3.Row
+    return connection
 
 
 def is_authenticated():
-    return "username" in session
-    # if "username" in session:
-    #    return True
-    # return False
+    if "username" in session:
+        return True
+    return False
 
 
 def authenticate(username, password):
     connection = get_db_connection()
-    user = connection.execute(
-        "SELECT * FROM users WHERE username = ?", (username,)).fetchone()
+    # Fetchone instead of fetchall
+    users = connection.execute("SELECT * FROM users").fetchall()
     connection.close()
 
-    if user and user["password"] == password:
-        # app.logger.info(f"the user '{username}' logged in successfully with password '{password}'")
-        app.logger.info(f"the user '{username}' logged in successfully")
-        session["username"] = username
-        return True
+    for user in users:
+        if user["username"] == username and user["password"] == password:
+            app.logger.info(
+                f"the user '{username}' logged in successfully with password '{password}'")
+            session["username"] = username
+            return True
 
-    # app.logger.warning(f"the user '{ username }' failed to log in '{ password }'")
-    app.logger.warning(f"the user '{username}' failed to log in")
+    app.logger.warning(f"the user '{username}' failed to log in '{password}'")
     abort(401)
 
 
